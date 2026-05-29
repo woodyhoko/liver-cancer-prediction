@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Liver Cancer Prediction — HCC Risk Stratification</title>
+<meta name="description" content="Machine-learning risk stratification for hepatocellular carcinoma from clinical laboratory data — multi-biomarker panels, calibrated models, AUROC-first evaluation.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spline+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0c0810;--ink:#fceef0;--muted:#b596a0;--rd:#ff5d73;--tl:#34d6c4;--am:#ffc14d;--line:rgba(255,255,255,.08)}
+  *{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--ink);font-family:"Spline Sans",system-ui,sans-serif;line-height:1.6;overflow-x:hidden}
+  a{color:inherit;text-decoration:none}
+  .bg{position:fixed;inset:0;z-index:0;background:radial-gradient(800px 600px at 78% 0,#23101a 0,var(--bg) 60%)}
+  .roc{position:fixed;right:-4%;bottom:0;width:60%;max-width:680px;z-index:0;opacity:.35}
+  .wrap{position:relative;z-index:3;max-width:1020px;margin:0 auto;padding:0 24px}
+  header{min-height:90vh;display:flex;flex-direction:column;justify-content:center;padding:80px 0 36px}
+  .tag{display:inline-flex;align-items:center;gap:8px;font-family:"IBM Plex Mono";font-size:12px;letter-spacing:1px;color:var(--tl);border:1px solid var(--line);border-radius:100px;padding:6px 14px;width:fit-content;margin-bottom:22px}
+  h1{font-weight:700;font-size:clamp(36px,6.5vw,80px);line-height:1.02;letter-spacing:-1.5px}
+  h1 .gr{background:linear-gradient(110deg,var(--rd),var(--am));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lede{font-size:clamp(16px,2vw,21px);color:var(--muted);max-width:660px;margin:24px 0}
+  .cta{display:flex;flex-wrap:wrap;gap:13px;margin-top:28px}
+  .btn{display:inline-flex;align-items:center;gap:9px;padding:14px 26px;border-radius:12px;font-weight:600;font-size:15px;transition:.18s;border:1px solid var(--line)}
+  .btn.p{background:linear-gradient(110deg,var(--rd),var(--am));color:#2a0810;border:none}.btn.p:hover{transform:translateY(-3px);box-shadow:0 12px 30px rgba(255,93,115,.35)}
+  .btn.g{background:rgba(255,255,255,.03)}.btn.g:hover{border-color:var(--tl);color:var(--tl);transform:translateY(-3px)}
+  section{padding:48px 0}
+  .lbl{font-family:"IBM Plex Mono";font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--tl);margin-bottom:8px}
+  .ttl{font-weight:700;font-size:clamp(23px,3.4vw,36px);margin-bottom:28px;letter-spacing:-.5px}
+  .stat{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:14px}
+  .stat .b{background:linear-gradient(160deg,#1a0e16,#100810);border:1px solid var(--line);border-radius:16px;padding:24px}
+  .stat .n{font-family:"IBM Plex Mono";font-size:28px;font-weight:600;color:var(--rd)}.stat .n.t{color:var(--tl)}
+  .stat .l{font-size:13px;color:var(--muted);margin-top:6px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+  .c{background:rgba(26,14,22,.55);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:16px;padding:24px;transition:.2s}
+  .c:hover{transform:translateY(-4px);border-color:rgba(52,214,196,.45)}
+  .c .ic{font-size:22px;margin-bottom:10px}.c h3{font-size:16px;margin-bottom:8px}.c p{font-size:14px;color:var(--muted)}
+  footer{border-top:1px solid var(--line);margin-top:50px;padding:38px 0 56px;text-align:center;color:var(--muted);font-size:14px}
+  footer a{color:var(--rd)}.fl{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;margin-bottom:16px}
+</style></head>
+<body>
+<div class="bg"></div>
+<svg class="roc" viewBox="0 0 400 400"><rect x="40" y="20" width="320" height="320" fill="none" stroke="rgba(255,255,255,.1)"/><line x1="40" y1="340" x2="360" y2="20" stroke="rgba(255,255,255,.15)" stroke-dasharray="6 6"/><path d="M40 340 C 80 160, 150 70, 360 20" fill="none" stroke="#34d6c4" stroke-width="3"/><path d="M40 340 C 110 220, 200 130, 360 20" fill="none" stroke="#ff5d73" stroke-width="3"/></svg>
+<div class="wrap">
+  <header>
+    <span class="tag">🩺 Clinical ML · Hepatocellular Carcinoma</span>
+    <h1>Catch liver cancer<br><span class="gr">earlier.</span></h1>
+    <p class="lede">Five-year survival for early-stage HCC reaches 70% — but below 10% once it's late, and AFP alone misses up to 60% of early cases. This project stratifies HCC risk from routine lab biomarkers, optimizing for the metric that matters: not missing a cancer.</p>
+    <div class="cta">
+      <a class="btn p" href="demo.html">▶ Interactive Demo</a>
+      <a class="btn g" href="https://github.com/woodyhoko/liver-cancer-prediction#readme">📖 Documentation</a>
+      <a class="btn g" href="https://github.com/woodyhoko/liver-cancer-prediction">⌥ Source</a>
+    </div>
+  </header>
+
+  <section>
+    <div class="lbl">the gap</div>
+    <div class="ttl">Stage at diagnosis decides survival.</div>
+    <div class="stat">
+      <div class="b"><div class="n t">70%</div><div class="l">5-yr survival, early-stage HCC</div></div>
+      <div class="b"><div class="n">&lt;10%</div><div class="l">5-yr survival, late-stage</div></div>
+      <div class="b"><div class="n">40–65%</div><div class="l">AFP sensitivity for early HCC</div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="lbl">pipeline</div>
+    <div class="ttl">From messy labs to a calibrated risk score.</div>
+    <div class="grid">
+      <div class="c"><div class="ic">🧪</div><h3>Multi-marker features</h3><p>Liver function, synthetic function, tumour markers (AFP, AFP-L3, PIVKA-II), viral serology and demographics — AFP log-transformed.</p></div>
+      <div class="c"><div class="ic">🔎</div><h3>Feature selection</h3><p>Mann-Whitney screening with BH-FDR, recursive feature elimination, and SHAP for post-hoc importance.</p></div>
+      <div class="c"><div class="ic">🤖</div><h3>Model bake-off</h3><p>Logistic regression, random forest, XGBoost and RBF-SVM, tuned via stratified 5-fold CV with class weighting.</p></div>
+      <div class="c"><div class="ic">📊</div><h3>AUROC-first</h3><p>A false negative costs far more than a false positive — so PR-AUC, sensitivity at the operating point, and calibration all get reported.</p></div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="fl"><a href="demo.html">Demo</a><a href="https://github.com/woodyhoko/liver-cancer-prediction">GitHub</a><a href="https://github.com/woodyhoko/liver-cancer-prediction#readme">README</a></div>
+    Built by <a href="https://github.com/woodyhoko">woodyhoko</a> · HCC Risk Stratification from Clinical Data
+  </footer>
+</div>
+</body></html>
