@@ -7,6 +7,7 @@
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:#0d1117;color:#e6edf3;font-family:"Segoe UI",system-ui,sans-serif;padding:20px;min-height:100vh}
+  .wrap{max-width:1080px;margin:0 auto}
   h1{font-size:20px;margin-bottom:4px;color:#34d6c4}
   .sub{color:#8b949e;font-size:13px;margin-bottom:16px}
   .notice{background:#161226;border:1px solid #ffc14d55;border-left:4px solid #ffc14d;border-radius:10px;padding:12px 14px;margin-bottom:18px;font-size:13px;line-height:1.55;color:#f0e2c0;max-width:900px}
@@ -31,6 +32,7 @@
 </style>
 </head>
 <body>
+<div class="wrap">
 <h1>mRNA expression vs. survival — interactive walkthrough</h1>
 <p class="sub">TCGA-LIHC · split patients by survival outcome, then look for genes whose tumour expression differs between the groups.</p>
 
@@ -56,6 +58,7 @@
     <div class="row" style="margin:12px 0 0"><button id="scan">▶ Scan genes</button></div>
     <p class="note">Each dot is a gene: x = how different the group means are, y = −log₁₀(p). Genes toward the top separate survivors from non-survivors the most — the candidates this exploratory screen surfaces. No multiple-testing correction is applied, so these are leads, not confirmed biomarkers.</p>
   </div>
+</div>
 </div>
 
 <script>
