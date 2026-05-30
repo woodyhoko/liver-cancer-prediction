@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Liver Cancer Prediction — HCC Risk Stratification</title>
-<meta name="description" content="Machine-learning risk stratification for hepatocellular carcinoma from clinical laboratory data — multi-biomarker panels, calibrated models, AUROC-first evaluation.">
+<title>Liver Cancer Prediction — mRNA & Survival in TCGA-LIHC</title>
+<meta name="description" content="Exploring whether liver-cancer (HCC) patient survival is associated with tumour mRNA expression, using the public TCGA-LIHC cohort — a simplified, exploratory analysis.">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Spline+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
@@ -37,46 +37,56 @@
   .c .ic{font-size:22px;margin-bottom:10px}.c h3{font-size:16px;margin-bottom:8px}.c p{font-size:14px;color:var(--muted)}
   footer{border-top:1px solid var(--line);margin-top:50px;padding:38px 0 56px;text-align:center;color:var(--muted);font-size:14px}
   footer a{color:var(--rd)}.fl{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;margin-bottom:16px}
+  @media(max-width:640px){
+    .wrap{padding:0 18px}
+    header{min-height:auto;padding:56px 0 28px}
+    .roc{width:90%;opacity:.18}
+    .cta{gap:10px}.btn{padding:13px 18px;font-size:14px;flex:1 1 100%;justify-content:center}
+    section{padding:34px 0}.c{padding:20px}
+    .stat{grid-template-columns:1fr}
+    .grid{grid-template-columns:1fr}
+  }
 </style></head>
 <body>
 <div class="bg"></div>
 <svg class="roc" viewBox="0 0 400 400"><rect x="40" y="20" width="320" height="320" fill="none" stroke="rgba(255,255,255,.1)"/><line x1="40" y1="340" x2="360" y2="20" stroke="rgba(255,255,255,.15)" stroke-dasharray="6 6"/><path d="M40 340 C 80 160, 150 70, 360 20" fill="none" stroke="#34d6c4" stroke-width="3"/><path d="M40 340 C 110 220, 200 130, 360 20" fill="none" stroke="#ff5d73" stroke-width="3"/></svg>
 <div class="wrap">
   <header>
-    <span class="tag">🩺 Clinical ML · Hepatocellular Carcinoma</span>
-    <h1>Catch liver cancer<br><span class="gr">earlier.</span></h1>
-    <p class="lede">Five-year survival for early-stage HCC reaches 70% — but below 10% once it's late, and AFP alone misses up to 60% of early cases. This project stratifies HCC risk from routine lab biomarkers, optimizing for the metric that matters: not missing a cancer.</p>
+    <span class="tag">🧬 Transcriptomics · TCGA-LIHC · Survival</span>
+    <h1>Does tumour mRNA<br><span class="gr">predict survival?</span></h1>
+    <p class="lede">An exploratory look at the public TCGA Liver Hepatocellular Carcinoma cohort: split patients by survival outcome, then scan tumour gene-expression (mRNA) to find the genes whose levels differ between those who survived and those who did not.</p>
     <div class="cta">
-      <a class="btn p" href="demo.html">▶ Interactive Demo</a>
+      <a class="btn p" href="demo.html">▶ Explore the Analysis</a>
       <a class="btn g" href="docs.html">📖 Documentation</a>
       <a class="btn g" href="https://github.com/woodyhoko/liver-cancer-prediction">⌥ Source</a>
     </div>
+    <p style="font-size:13px;color:var(--muted);margin-top:18px;max-width:660px">Built only on publicly released, de-identified TCGA data — not a clinical tool, and no private patient details are shared here.</p>
   </header>
 
   <section>
-    <div class="lbl">the gap</div>
-    <div class="ttl">Stage at diagnosis decides survival.</div>
+    <div class="lbl">the cohort</div>
+    <div class="ttl">Public TCGA-LIHC, framed as one question.</div>
     <div class="stat">
-      <div class="b"><div class="n t">70%</div><div class="l">5-yr survival, early-stage HCC</div></div>
-      <div class="b"><div class="n">&lt;10%</div><div class="l">5-yr survival, late-stage</div></div>
-      <div class="b"><div class="n">40–65%</div><div class="l">AFP sensitivity for early HCC</div></div>
+      <div class="b"><div class="n t">~377</div><div class="l">patients with clinical + RNA-Seq data</div></div>
+      <div class="b"><div class="n">2 groups</div><div class="l">survived vs. deceased, by survival status</div></div>
+      <div class="b"><div class="n t">≈70%</div><div class="l">accuracy: 5-yr survival above ~50% or not</div></div>
     </div>
   </section>
 
   <section>
-    <div class="lbl">pipeline</div>
-    <div class="ttl">From messy labs to a calibrated risk score.</div>
+    <div class="lbl">approach</div>
+    <div class="ttl">A simple per-gene survival screen.</div>
     <div class="grid">
-      <div class="c"><div class="ic">🧪</div><h3>Multi-marker features</h3><p>Liver function, synthetic function, tumour markers (AFP, AFP-L3, PIVKA-II), viral serology and demographics — AFP log-transformed.</p></div>
-      <div class="c"><div class="ic">🔎</div><h3>Feature selection</h3><p>Mann-Whitney screening with BH-FDR, recursive feature elimination, and SHAP for post-hoc importance.</p></div>
-      <div class="c"><div class="ic">🤖</div><h3>Model bake-off</h3><p>Logistic regression, random forest, XGBoost and RBF-SVM, tuned via stratified 5-fold CV with class weighting.</p></div>
-      <div class="c"><div class="ic">📊</div><h3>AUROC-first</h3><p>A false negative costs far more than a false positive — so PR-AUC, sensitivity at the operating point, and calibration all get reported.</p></div>
+      <div class="c"><div class="ic">🧬</div><h3>mRNA expression</h3><p>Median RNA-Seq expression per gene, one column per tumour sample, matched to each patient by TCGA ID.</p></div>
+      <div class="c"><div class="ic">🪓</div><h3>Split by outcome</h3><p>Patients are grouped by <em>Overall Survival Status</em> — living vs. deceased — to compare the two populations.</p></div>
+      <div class="c"><div class="ic">📈</div><h3>Per-gene z-test</h3><p>For each gene, a two-sample z-test (statsmodels) flags whether expression differs between the survival groups.</p></div>
+      <div class="c"><div class="ic">⚠️</div><h3>Exploratory only</h3><p>No multiple-testing correction, one modest cohort, binary survival framing — directional signal, not a validated predictor.</p></div>
     </div>
   </section>
 
   <footer>
     <div class="fl"><a href="demo.html">Demo</a><a href="https://github.com/woodyhoko/liver-cancer-prediction">GitHub</a><a href="docs.html">README</a></div>
-    Built by <a href="https://github.com/woodyhoko">woodyhoko</a> · HCC Risk Stratification from Clinical Data
+    Built by <a href="https://github.com/woodyhoko">woodyhoko</a> · mRNA &amp; Survival in the public TCGA-LIHC cohort
   </footer>
 </div>
 </body></html>

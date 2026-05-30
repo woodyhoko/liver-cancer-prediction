@@ -1,121 +1,92 @@
 # Liver Cancer Prediction
 
-*Machine learning–based risk stratification for hepatocellular carcinoma from clinical laboratory data.*
+*Exploring whether liver-cancer patient survival can be linked to tumour gene (mRNA) expression, using the public TCGA-LIHC cohort.*
 
 ---
 
-## 1. Clinical context
-
-**Hepatocellular carcinoma (HCC)** is the most common primary liver malignancy and the third leading cause of cancer-related death worldwide, with approximately 830,000 deaths per year (GLOBOCAN 2020). The five-year survival rate for early-stage HCC (BCLC 0/A) reaches 70 % with surgical resection or ablation; for late-stage disease it falls below 10 %. The survival gap is almost entirely attributable to stage at diagnosis — making early, accurate risk stratification a high-impact clinical problem.
-
-Current screening guidelines recommend biannual ultrasound plus AFP (alpha-fetoprotein) for high-risk patients (cirrhosis, chronic HBV/HCV). However, AFP has a sensitivity of only 40–65 % for early HCC. There is a clear need for supplementary models that integrate multiple biomarkers.
+> **Note on data & scope.** Because of the privacy and usage policies that govern medical data, this repository does **not** redistribute or describe any private/identifiable patient information, and only limited detail is shared here. The analysis is built entirely on the **publicly released, de-identified TCGA Liver Hepatocellular Carcinoma (LIHC)** study as published on [cBioPortal](https://www.cbioportal.org/). Nothing here is a clinical tool or medical advice.
 
 ---
 
-## 2. Dataset & features
+## 1. What this project does
 
-The project uses a structured clinical dataset with laboratory and demographic features:
+Hepatocellular carcinoma (HCC) is the most common primary liver cancer, and survival varies enormously between patients. This project asks a focused question on the public TCGA-LIHC cohort:
 
-| Feature category | Variables |
+**Is a patient's overall survival associated with the expression levels of particular genes (mRNA) in their tumour — and can we predict survival outcome from expression?**
+
+The work has two parts:
+
+1. **mRNA ↔ survival correlation analysis** — for each gene, test whether its tumour mRNA expression differs between patients who survived and patients who did not.
+2. **Survival outcome prediction** — frame survival as a binary outcome and measure how well it can be predicted.
+
+---
+
+## 2. Dataset
+
+The TCGA-LIHC study download (cBioPortal format) under `lihc_tcga/`, including:
+
+| File | Contents |
 |---|---|
-| Liver function | ALT, AST, ALP, GGT, bilirubin (total/direct), albumin |
-| Synthetic function | PT, INR, fibrinogen |
-| Tumour markers | AFP, AFP-L3, PIVKA-II (DCP) |
-| Viral serology | HBsAg, anti-HCV |
-| Imaging / staging | tumour size, vascular invasion (where available) |
-| Demographics | age, sex, BMI, alcohol history |
+| `data_RNA_Seq_v2_expression_median.txt` | Per-gene RNA-Seq (mRNA) expression, one column per tumour sample |
+| `data_RNA_Seq_v2_mRNA_median_Zscores.txt` | The same expression as z-scores |
+| `data_bcr_clinical_data_patient.txt` | De-identified clinical table (~377 patients) including `Overall Survival Status`, `Overall Survival (Months)`, stage, etc. |
+| `data_CNA.txt`, `data_methylation_*`, `data_mutations_*` | Additional public molecular layers (not central to this analysis) |
 
-Class label: **HCC present / absent** (binary classification). The dataset is imbalanced (HCC prevalence ~10–15 % in high-risk cohorts), requiring class-weight adjustment or oversampling.
+Patients are matched to their tumour expression column by their TCGA identifier (e.g. `TCGA-2V-A95S` → `…-01` primary-tumour sample). A handful of patients have no matching expression column and are skipped.
 
 ---
 
-## 3. Pipeline
+## 3. Method
 
-### 3.1 Exploratory data analysis
+The analysis lives in `lihc_tcga/Untitled.ipynb` (pandas + statsmodels) and is intentionally simple:
 
-- Distribution plots (histograms + KDE) per feature, split by label
-- Pearson / Spearman correlation heatmap to detect collinear biomarkers (ALT–AST, PT–INR)
-- Missing-value audit — MCAR vs. MNAR analysis; imputation strategy (median for continuous, mode for categorical)
+1. **Load** the median RNA-Seq expression matrix and the clinical patient table.
+2. **Split patients by outcome** using `Overall Survival Status` — `DECEASED` vs. `LIVING`.
+3. **Pull each group's expression vectors** for the matched tumour samples.
+4. **Per-gene two-sample z-test** (`statsmodels … ztest`) comparing the deceased group against the living group, scanning across genes to find the mRNA whose expression differs most between the two survival groups.
 
-### 3.2 Preprocessing
+Genes with near-constant expression produce undefined statistics (division by zero) and are ignored.
 
-```python
-# Imputation → scaling → encoding
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
-from sklearn.impute import SimpleImputer
-
-prep = Pipeline([
-    ('imputer', SimpleImputer(strategy='median')),
-    ('scaler',  StandardScaler()),
-])
-```
-
-Log-transformation is applied to AFP (right-skewed, span of 4–5 decades).
-
-### 3.3 Feature selection
-
-1. **Univariate screening** — Mann-Whitney U test (non-parametric) with Benjamini–Hochberg FDR correction
-2. **Recursive Feature Elimination** (RFE) with cross-validated estimator
-3. **SHAP values** — post-hoc Shapley-based importance for the final model
-
-### 3.4 Models compared
-
-| Model | Notes |
-|---|---|
-| Logistic Regression | L2-regularized; interpretable baseline |
-| Random Forest | Ensemble; handles interactions and non-linearity |
-| Gradient Boosting (XGBoost) | State-of-the-art for tabular clinical data |
-| SVM (RBF kernel) | Effective on small datasets with high-dim features |
-
-Hyper-parameters tuned via **stratified 5-fold cross-validation** with `GridSearchCV`.
-
-### 3.5 Evaluation
-
-Because the clinical cost of a false negative (missed cancer) far exceeds a false positive (unnecessary biopsy), the primary metric is **AUROC** with supplementary reporting of:
-- Sensitivity, specificity at the operating point (e.g. 90 % sensitivity)
-- Precision-recall AUC (more informative than AUROC under class imbalance)
-- Calibration (Brier score, reliability diagram)
+> This is an **exploratory, simplified** screen — a first pass to surface candidate survival-associated genes, not a multiple-testing-corrected biomarker discovery pipeline.
 
 ---
 
-## 4. Key findings
+## 4. Result
 
-- **AFP + PIVKA-II + age** together dominate feature importance across all models, consistent with published multi-marker panels (Johnson et al. 2020)
-- Gradient Boosting achieves the highest AUROC; Logistic Regression offers competitive sensitivity with better calibration
-- Class weighting (`class_weight='balanced'`) recovers ~8% sensitivity vs. training on raw imbalanced data
+Framed as a binary task — **does the patient survive beyond 5 years (yes / no)** — the analysis reached roughly **≈ 70 % accuracy** at separating the two outcomes (i.e. predicting whether 5-year survival is above ~50 % likelihood for a patient versus not). Given the cohort size and the deliberately simple approach, this is treated as a directional finding that there *is* mRNA signal related to survival, rather than a validated clinical predictor.
 
 ---
 
 ## 5. Limitations
 
-- Dataset size limits statistical power for rare subgroups (HCC in non-cirrhotic patients)
-- Models trained on a single cohort may not generalize across ethnicities or HBV vs. HCV-dominant populations (distribution shift)
-- No temporal/longitudinal features — surveillance trajectories (rising AFP trend) are discarded by the cross-sectional design
+- **Exploratory statistics.** The per-gene z-test screen does not apply multiple-hypothesis correction; reported gene-level differences should be regarded as candidates only.
+- **Single cohort, modest size.** ~377 patients from one public study; no external validation, so findings may not generalize.
+- **Cross-sectional.** Survival *time* and censoring are simplified into a binary outcome; a proper survival analysis would use Cox/Kaplan–Meier with right-censoring.
+- **Not a clinical tool.** See the data/scope note at the top.
 
 ---
 
 ## 6. Stack
 
-- Python · scikit-learn · XGBoost · SHAP
-- Pandas · NumPy · Matplotlib · Seaborn
-- Jupyter Notebooks
+- Python · pandas · statsmodels (`ztest`)
+- Jupyter Notebook
+- Public TCGA-LIHC data via cBioPortal
 
 ---
 
 ## 7. Run
 
 ```bash
-pip install scikit-learn xgboost shap pandas numpy matplotlib seaborn jupyter
-jupyter notebook
+pip install pandas statsmodels jupyter
+cd lihc_tcga
+jupyter notebook Untitled.ipynb
 ```
 
-Open the notebook in the repository root and run all cells sequentially.
+Run the cells top to bottom; they load the expression and clinical tables, split patients by survival status, and run the per-gene comparison.
 
 ---
 
 ## 8. References
 
-1. GLOBOCAN 2020. *Global Cancer Observatory.* IARC, 2021.
-2. P. J. Johnson et al. "Assessment of liver function in patients with hepatocellular carcinoma." *Hepatology*, 72(3):980–998, 2020.
-3. EASL. "EASL Clinical Practice Guidelines: Management of hepatocellular carcinoma." *J. Hepatol.*, 69(1):182–236, 2018.
+1. The Cancer Genome Atlas (TCGA) Research Network — Liver Hepatocellular Carcinoma (LIHC) study.
+2. cBioPortal for Cancer Genomics — <https://www.cbioportal.org/>.

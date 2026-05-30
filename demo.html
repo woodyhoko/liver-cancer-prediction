@@ -3,212 +3,161 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Liver Cancer Prediction — ML Pipeline Demo</title>
+<title>Liver Cancer Prediction — mRNA vs Survival (Illustrative)</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:#0d1117;color:#e6edf3;font-family:"Segoe UI",system-ui,sans-serif;padding:20px;min-height:100vh}
-  h1{font-size:20px;margin-bottom:4px;color:#3fb950}
-  .sub{color:#8b949e;font-size:13px;margin-bottom:20px}
+  h1{font-size:20px;margin-bottom:4px;color:#34d6c4}
+  .sub{color:#8b949e;font-size:13px;margin-bottom:16px}
+  .notice{background:#161226;border:1px solid #ffc14d55;border-left:4px solid #ffc14d;border-radius:10px;padding:12px 14px;margin-bottom:18px;font-size:13px;line-height:1.55;color:#f0e2c0;max-width:900px}
+  .notice b{color:#ffc14d}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
   @media(max-width:650px){.grid{grid-template-columns:1fr}}
-  .card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:15px}
+  .card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:16px}
   h2{font-size:12px;color:#8b949e;margin-bottom:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
   canvas{width:100%;display:block;border-radius:6px}
-  .features{display:flex;flex-direction:column;gap:6px}
-  .feat{display:flex;align-items:center;gap:8px;font-size:12px}
-  .feat-name{width:80px;flex:0 0 80px;color:#8b949e}
-  .feat-bar-wrap{flex:1;height:12px;background:#0d1117;border-radius:6px;overflow:hidden}
-  .feat-bar{height:100%;border-radius:6px;transition:width .4s}
-  .feat-val{width:40px;flex:0 0 40px;text-align:right;font-variant-numeric:tabular-nums;color:#3fb950}
-  .metrics{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:14px}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
+  button{padding:9px 18px;border:none;border-radius:8px;cursor:pointer;background:#34d6c4;color:#06231f;font-weight:700;font-size:13px;transition:.15s}
+  button:hover{filter:brightness(1.08)}
+  .metrics{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
   .metric{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:12px;text-align:center}
   .metric .lbl{font-size:11px;color:#8b949e;margin-bottom:4px}
-  .metric .num{font-size:22px;font-weight:700;color:#3fb950}
-  button{padding:9px 20px;border:none;border-radius:8px;cursor:pointer;background:#3fb950;color:#0d1117;font-weight:700;font-size:13px;margin-bottom:16px;transition:.15s}
-  button:hover{filter:brightness(1.08)}
-  .patient{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px}
-  .p-field{display:flex;flex-direction:column;gap:3px;font-size:12px}
-  .p-field label{color:#8b949e}
-  .p-field input{background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#e6edf3;padding:5px 8px;width:90px}
-  .roc-note{font-size:11px;color:#8b949e;margin-top:6px}
+  .metric .num{font-size:22px;font-weight:700;color:#34d6c4}
+  .legend{font-size:12px;color:#8b949e;margin-top:8px}
+  .legend .liv{color:#34d6c4}.legend .dec{color:#ff5d73}
+  .note{font-size:11px;color:#8b949e;margin-top:6px;line-height:1.5}
+  .pick{display:flex;align-items:center;gap:8px;font-size:13px;color:#8b949e}
+  .pick input{flex:1}
 </style>
 </head>
 <body>
-<h1>Liver Cancer Prediction</h1>
-<p class="sub">Interactive ML pipeline visualization — feature importance, simulated ROC/PR curves, and per-patient risk prediction.</p>
+<h1>mRNA expression vs. survival — interactive walkthrough</h1>
+<p class="sub">TCGA-LIHC · split patients by survival outcome, then look for genes whose tumour expression differs between the groups.</p>
 
-<div class="metrics" id="metrics">
-  <div class="metric"><div class="lbl">AUROC</div><div class="num" id="m-auc">—</div></div>
-  <div class="metric"><div class="lbl">Sensitivity</div><div class="num" id="m-sen">—</div></div>
-  <div class="metric"><div class="lbl">Specificity</div><div class="num" id="m-spe">—</div></div>
-  <div class="metric"><div class="lbl">PR-AUC</div><div class="num" id="m-prc">—</div></div>
+<div class="notice">⚠️ <b>This is an explanatory visualization of a simplified analysis, with illustrative (synthetic) numbers</b> — the raw TCGA expression matrix isn't bundled into this page, so the values you see are generated to demonstrate <b>how the method works</b>, not real per-gene results. It is <b>not a clinical or diagnostic tool</b>. The actual code runs in <a href="https://github.com/woodyhoko/liver-cancer-prediction/blob/main/lihc_tcga/Untitled.ipynb" style="color:#ffc14d">lihc_tcga/Untitled.ipynb</a> on the public, de-identified <a href="https://www.cbioportal.org/" style="color:#ffc14d">cBioPortal TCGA-LIHC</a> data.</div>
+
+<div class="metrics">
+  <div class="metric"><div class="lbl">Patients (illustrative)</div><div class="num">~377</div></div>
+  <div class="metric"><div class="lbl">Genes scanned</div><div class="num" id="m-genes">—</div></div>
+  <div class="metric"><div class="lbl">5-yr survival accuracy</div><div class="num">≈70%</div></div>
 </div>
-
-<button id="train">Run Simulation</button>
 
 <div class="grid">
   <div class="card">
-    <h2>Feature Importance (SHAP / gain)</h2>
-    <div class="features" id="feats"></div>
+    <h2>One gene: living vs. deceased</h2>
+    <div class="pick">weak signal<input id="effect" type="range" min="0" max="100" value="62">strong signal</div>
+    <canvas id="dist" height="220"></canvas>
+    <p class="legend"><span class="liv">●</span> survived &nbsp; <span class="dec">●</span> deceased &nbsp;—&nbsp; z = <b id="zval">—</b>, p = <b id="pval">—</b></p>
+    <p class="note">Drag the slider to see how a gene whose expression separates the two survival groups produces a larger z-statistic (smaller p) in the two-sample z-test. Genes with overlapping distributions carry little survival signal.</p>
   </div>
   <div class="card">
-    <h2>ROC Curve</h2>
-    <canvas id="roc" height="220"></canvas>
-    <p class="roc-note">AUC = area under ROC curve. Dashed line = random classifier.</p>
-  </div>
-  <div class="card">
-    <h2>Precision-Recall Curve</h2>
-    <canvas id="prc" height="220"></canvas>
-    <p class="roc-note">PR-AUC is more informative than AUROC under class imbalance (~10% HCC prevalence).</p>
-  </div>
-  <div class="card">
-    <h2>Risk Prediction — Input Your Values</h2>
-    <div class="patient">
-      <div class="p-field"><label>AFP (ng/mL)</label><input id="afp" type="number" value="12" min="0" max="10000"></div>
-      <div class="p-field"><label>ALT (U/L)</label><input id="alt" type="number" value="45" min="0" max="500"></div>
-      <div class="p-field"><label>Age</label><input id="age" type="number" value="55" min="18" max="90"></div>
-      <div class="p-field"><label>HBsAg+</label><input id="hbv" type="number" value="1" min="0" max="1"></div>
-    </div>
-    <canvas id="gauge" height="140"></canvas>
+    <h2>Scanning every gene (schematic volcano)</h2>
+    <canvas id="volcano" height="220"></canvas>
+    <div class="row" style="margin:12px 0 0"><button id="scan">▶ Scan genes</button></div>
+    <p class="note">Each dot is a gene: x = how different the group means are, y = −log₁₀(p). Genes toward the top separate survivors from non-survivors the most — the candidates this exploratory screen surfaces. No multiple-testing correction is applied, so these are leads, not confirmed biomarkers.</p>
   </div>
 </div>
 
 <script>
-// Simulated feature importances (based on published HCC prediction literature)
-const FEATURES = [
-  { name: 'AFP', weight: 0.31, color: '#3fb950' },
-  { name: 'PIVKA-II', weight: 0.22, color: '#3fb950' },
-  { name: 'Age', weight: 0.14, color: '#58a6ff' },
-  { name: 'HBsAg+', weight: 0.11, color: '#d29922' },
-  { name: 'GGT', weight: 0.08, color: '#58a6ff' },
-  { name: 'Albumin', weight: 0.06, color: '#58a6ff' },
-  { name: 'AFP-L3', weight: 0.05, color: '#3fb950' },
-  { name: 'Cirrhosis', weight: 0.03, color: '#d29922' },
-];
-
-function renderFeatures() {
-  const el = document.getElementById('feats');
-  el.innerHTML = '';
-  const max = FEATURES[0].weight;
-  FEATURES.forEach(f => {
-    const pct = (f.weight / max * 100).toFixed(0);
-    el.innerHTML += `<div class="feat"><div class="feat-name">${f.name}</div><div class="feat-bar-wrap"><div class="feat-bar" style="width:${pct}%;background:${f.color}"></div></div><div class="feat-val">${(f.weight*100).toFixed(0)}%</div></div>`;
-  });
+// ---- Helpers -------------------------------------------------
+function gaussian(mean, sd){ // Box-Muller
+  let u=0,v=0; while(!u)u=Math.random(); while(!v)v=Math.random();
+  return mean + sd*Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
+function mean(a){return a.reduce((s,x)=>s+x,0)/a.length;}
+function variance(a){const m=mean(a);return a.reduce((s,x)=>s+(x-m)*(x-m),0)/a.length;}
+// Two-sample z-test (independent), like statsmodels.ztest on two groups
+function ztest(a,b){
+  const ma=mean(a),mb=mean(b);
+  const se=Math.sqrt(variance(a)/a.length + variance(b)/b.length) || 1e-9;
+  const z=(ma-mb)/se;
+  const p=2*(1-normCdf(Math.abs(z)));
+  return {z,p};
+}
+function normCdf(x){ // Abramowitz-Stegun
+  const t=1/(1+0.2316419*Math.abs(x));
+  const d=0.3989423*Math.exp(-x*x/2);
+  let prob=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));
+  return x>0?1-prob:prob;
 }
 
-function generateROC() {
-  // Simulate ROC curve for a good classifier (AUC ≈ 0.88)
-  const pts = [[0, 0]];
-  for (let i = 1; i <= 40; i++) {
-    const fpr = Math.pow(i / 40, 1.6);
-    const tpr = 1 - Math.pow(1 - i / 40, 0.45);
-    pts.push([fpr, tpr]);
+const N_LIV=240, N_DEC=137; // illustrative split of ~377
+let livSamples=[], decSamples=[];
+
+function buildGene(effect){ // effect 0..1 -> mean shift between groups
+  const shift=effect*2.6;
+  livSamples=Array.from({length:N_LIV},()=>gaussian(8, 1.4));
+  decSamples=Array.from({length:N_DEC},()=>gaussian(8+shift, 1.5));
+}
+
+// ---- Distribution chart --------------------------------------
+function drawDist(){
+  const cv=document.getElementById('dist'),ctx=cv.getContext('2d');
+  const W=cv.width=cv.clientWidth*devicePixelRatio, H=cv.height=220*devicePixelRatio;
+  ctx.fillStyle='#0d1117';ctx.fillRect(0,0,W,H);
+  const all=livSamples.concat(decSamples);
+  const lo=Math.min(...all)-1, hi=Math.max(...all)+1, bins=26;
+  const hist=(arr)=>{const h=new Array(bins).fill(0);arr.forEach(v=>{let i=Math.floor((v-lo)/(hi-lo)*bins);i=Math.max(0,Math.min(bins-1,i));h[i]++;});return h;};
+  const hl=hist(livSamples), hd=hist(decSamples);
+  const maxc=Math.max(...hl,...hd);
+  const pad={l:8,r:8,t:14,b:20};
+  const bw=(W-pad.l-pad.r)/bins;
+  const bar=(h,color)=>{ctx.fillStyle=color;h.forEach((c,i)=>{const bh=(c/maxc)*(H-pad.t-pad.b);ctx.fillRect(pad.l+i*bw+1,H-pad.b-bh,bw-2,bh);});};
+  bar(hl,'rgba(52,214,196,.55)');
+  bar(hd,'rgba(255,93,115,.55)');
+  ctx.fillStyle='#8b949e';ctx.font=`${10*devicePixelRatio}px sans-serif`;
+  ctx.fillText('tumour mRNA expression →', pad.l, H-6);
+  const {z,p}=ztest(livSamples,decSamples);
+  document.getElementById('zval').textContent=z.toFixed(2);
+  document.getElementById('pval').textContent=p<1e-4?p.toExponential(1):p.toFixed(4);
+}
+
+// ---- Volcano -------------------------------------------------
+function drawVolcano(progress){
+  const cv=document.getElementById('volcano'),ctx=cv.getContext('2d');
+  const W=cv.width=cv.clientWidth*devicePixelRatio, H=cv.height=220*devicePixelRatio;
+  ctx.fillStyle='#0d1117';ctx.fillRect(0,0,W,H);
+  const pad={l:34,r:12,t:12,b:26};
+  ctx.strokeStyle='#21262d';ctx.lineWidth=1;
+  [0,.25,.5,.75,1].forEach(v=>{const y=pad.t+(1-v)*(H-pad.t-pad.b);ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(W-pad.r,y);ctx.stroke();});
+  const total=GENES.length, shown=Math.floor(total*progress);
+  for(let i=0;i<shown;i++){
+    const g=GENES[i];
+    const x=pad.l+(g.eff/3.4)*(W-pad.l-pad.r);
+    const y=pad.t+(1-Math.min(1,g.sig/6))*(H-pad.t-pad.b);
+    const hot=g.sig>3.2;
+    ctx.fillStyle=hot?'rgba(255,193,77,.9)':'rgba(120,160,200,.5)';
+    ctx.beginPath();ctx.arc(x,y,hot?3.2*devicePixelRatio:2*devicePixelRatio,0,6.28);ctx.fill();
   }
-  pts.push([1, 1]);
-  return pts;
+  ctx.fillStyle='#8b949e';ctx.font=`${10*devicePixelRatio}px sans-serif`;
+  ctx.fillText('|mean difference| →', pad.l, H-6);
+  ctx.save();ctx.translate(12*devicePixelRatio,pad.t+70);ctx.rotate(-Math.PI/2);ctx.fillText('−log10(p)',0,0);ctx.restore();
+  document.getElementById('m-genes').textContent=shown.toLocaleString();
 }
 
-function generatePRC() {
-  const pts = [[0, 1]];
-  for (let i = 1; i <= 40; i++) {
-    const recall = i / 40;
-    const prec = 0.9 * Math.pow(1 - recall, 0.4) + 0.08;
-    pts.push([recall, prec]);
-  }
-  return pts;
-}
+// Pre-generate a synthetic gene cloud (most genes = noise, a few separate the groups)
+const GENES=Array.from({length:6000},()=>{
+  const eff=Math.abs(gaussian(0,0.6));
+  const sig=eff*1.6 + Math.abs(gaussian(0,0.7));
+  return {eff,sig};
+});
 
-function drawCurve(canvasId, pts, xlabel, ylabel, diagLabel, color) {
-  const cv = document.getElementById(canvasId);
-  const ctx = cv.getContext('2d');
-  const W = cv.clientWidth * devicePixelRatio, H = cv.clientHeight * devicePixelRatio;
-  cv.width = W; cv.height = H;
-  const pad = { l: 40, r: 16, t: 16, b: 36 };
-  ctx.fillStyle = '#0d1117'; ctx.fillRect(0, 0, W, H);
-  // grid
-  ctx.strokeStyle = '#21262d'; ctx.lineWidth = 1;
-  [0, .25, .5, .75, 1].forEach(v => {
-    const y = pad.t + (1 - v) * (H - pad.t - pad.b);
-    const x = pad.l + v * (W - pad.l - pad.r);
-    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(x, pad.t); ctx.lineTo(x, H - pad.b); ctx.stroke();
-  });
-  // diagonal
-  ctx.strokeStyle = '#30363d'; ctx.setLineDash([4, 4]);
-  ctx.beginPath(); ctx.moveTo(pad.l, H - pad.b); ctx.lineTo(W - pad.r, pad.t); ctx.stroke();
-  ctx.setLineDash([]);
-  // curve fill
-  ctx.beginPath();
-  pts.forEach(([x, y], i) => { const px = pad.l + x * (W - pad.l - pad.r), py = pad.t + (1 - y) * (H - pad.t - pad.b); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); });
-  ctx.lineTo(W - pad.r, H - pad.b); ctx.lineTo(pad.l, H - pad.b); ctx.closePath();
-  ctx.fillStyle = color + '18'; ctx.fill();
-  // curve line
-  ctx.beginPath();
-  pts.forEach(([x, y], i) => { const px = pad.l + x * (W - pad.l - pad.r), py = pad.t + (1 - y) * (H - pad.t - pad.b); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); });
-  ctx.strokeStyle = color; ctx.lineWidth = 2.5 * devicePixelRatio; ctx.stroke();
-  // labels
-  ctx.fillStyle = '#8b949e'; ctx.font = `${9 * devicePixelRatio}px sans-serif`;
-  ctx.fillText(xlabel, W - pad.r - 30, H - 8);
-  ctx.save(); ctx.translate(12, pad.t + 30); ctx.rotate(-Math.PI / 2); ctx.fillText(ylabel, 0, 0); ctx.restore();
-}
+// ---- Wire up -------------------------------------------------
+const effEl=document.getElementById('effect');
+function refreshGene(){ buildGene(+effEl.value/100); drawDist(); }
+effEl.addEventListener('input', refreshGene);
+window.addEventListener('resize',()=>{drawDist();drawVolcano(volProg);});
 
-function drawGauge(risk) {
-  const cv = document.getElementById('gauge');
-  const ctx = cv.getContext('2d');
-  const W = cv.clientWidth * devicePixelRatio, H = cv.clientHeight * devicePixelRatio;
-  cv.width = W; cv.height = H;
-  ctx.fillStyle = '#0d1117'; ctx.fillRect(0, 0, W, H);
-  const cx = W / 2, cy = H * 0.75, r = Math.min(W, H * 1.5) * 0.38;
-  // background arc
-  ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI, 0); ctx.lineWidth = r * 0.22;
-  const grad = ctx.createLinearGradient(cx - r, cy, cx + r, cy);
-  grad.addColorStop(0, '#3fb950'); grad.addColorStop(0.5, '#d29922'); grad.addColorStop(1, '#f85149');
-  ctx.strokeStyle = grad; ctx.lineCap = 'round'; ctx.stroke();
-  // needle
-  const angle = Math.PI + risk * Math.PI;
-  ctx.save(); ctx.translate(cx, cy);
-  ctx.rotate(angle); ctx.fillStyle = '#e6edf3';
-  ctx.beginPath(); ctx.moveTo(0, -r * 0.82); ctx.lineTo(-4, 0); ctx.lineTo(4, 0); ctx.closePath(); ctx.fill();
-  ctx.restore();
-  ctx.fillStyle = '#0d1117'; ctx.beginPath(); ctx.arc(cx, cy, r * 0.12, 0, 6.28); ctx.fill();
-  ctx.fillStyle = risk < 0.3 ? '#3fb950' : risk < 0.7 ? '#d29922' : '#f85149';
-  ctx.font = `bold ${18 * devicePixelRatio}px sans-serif`; ctx.textAlign = 'center';
-  ctx.fillText((risk * 100).toFixed(0) + '% risk', cx, cy - r * 0.25);
-  ctx.fillStyle = '#8b949e'; ctx.font = `${10 * devicePixelRatio}px sans-serif`;
-  ctx.fillText(risk < 0.3 ? 'LOW' : risk < 0.7 ? 'MODERATE' : 'HIGH', cx, cy - r * 0.08);
+let volProg=0, raf=null;
+function scan(){
+  cancelAnimationFrame(raf); volProg=0;
+  const step=()=>{ volProg=Math.min(1,volProg+0.02); drawVolcano(volProg); if(volProg<1)raf=requestAnimationFrame(step); };
+  step();
 }
+document.getElementById('scan').onclick=scan;
 
-function predictRisk() {
-  const afp = Math.min(10000, +document.getElementById('afp').value);
-  const alt = Math.min(500, +document.getElementById('alt').value);
-  const age = Math.min(90, +document.getElementById('age').value);
-  const hbv = +document.getElementById('hbv').value > 0 ? 1 : 0;
-  // Simplified logistic model (illustrative, not clinical)
-  const logit = -6 + 0.31 * Math.log1p(afp) + 0.012 * alt + 0.04 * (age - 40) + 1.2 * hbv;
-  const risk = 1 / (1 + Math.exp(-logit));
-  drawGauge(risk);
-}
-
-function runSim() {
-  renderFeatures();
-  const rocPts = generateROC();
-  const prcPts = generatePRC();
-  const auc = 0.88 + (Math.random() - 0.5) * 0.04;
-  const sen = 0.82 + (Math.random() - 0.5) * 0.06;
-  const spe = 0.90 + (Math.random() - 0.5) * 0.05;
-  const prauc = 0.61 + (Math.random() - 0.5) * 0.06;
-  document.getElementById('m-auc').textContent = auc.toFixed(2);
-  document.getElementById('m-sen').textContent = (sen * 100).toFixed(0) + '%';
-  document.getElementById('m-spe').textContent = (spe * 100).toFixed(0) + '%';
-  document.getElementById('m-prc').textContent = prauc.toFixed(2);
-  drawCurve('roc', rocPts, 'FPR', 'TPR', 'random', '#3fb950');
-  drawCurve('prc', prcPts, 'Recall', 'Precision', 'baseline', '#58a6ff');
-  predictRisk();
-}
-
-document.getElementById('train').onclick = runSim;
-['afp','alt','age','hbv'].forEach(id => document.getElementById(id).oninput = predictRisk);
-runSim();
+refreshGene();
+drawVolcano(1);
 </script>
 </body>
 </html>
